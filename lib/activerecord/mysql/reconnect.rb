@@ -75,6 +75,10 @@ module Activerecord::Mysql::Reconnect
       !!ActiveRecord::Base.enable_retry
     end
 
+    def retry_in_transaction
+      !!ActiveRecord::Base.retry_in_transaction
+    end
+
     def retry_mode=(v)
       unless RETRY_MODES.include?(v)
         raise "Invalid retry_mode. Please set one of the following: #{RETRY_MODES.map {|i| i.inspect }.join(', ')}"
@@ -116,12 +120,13 @@ module Activerecord::Mysql::Reconnect
     end
 
     def retryable(opts)
-      block     = opts.fetch(:proc)
-      on_error  = opts[:on_error]
-      conn      = opts[:connection]
-      sql       = opts[:sql]
-      tries     = self.execution_tries
-      retval    = nil
+      block           = opts.fetch(:proc)
+      on_error        = opts[:on_error]
+      conn            = opts[:connection]
+      sql             = opts[:sql]
+      in_transaction  = opts[:in_transaction]
+      tries           = self.execution_tries
+      retval          = nil
 
       retryable_loop(tries) do |n|
         begin
@@ -134,6 +139,12 @@ module Activerecord::Mysql::Reconnect
 
             logger.warn("MySQL server has gone away. Trying to reconnect in #{wait.to_f} seconds. (#{build_error_message(e, sql, conn)})")
             sleep(wait)
+
+            if in_transaction
+              # re-raise exception if inside transaction, but retry in transactions is disabled
+              raise e unless retry_in_transaction
+            end
+
             next
           else
             if enable_retry and n > 1

@@ -37,6 +37,7 @@ ActiveRecord::Base.logger = Logger.new($stdout)
 ActiveRecord::Base.logger.formatter = proc {|_, _, _, message| "#{message}\n" }
 ActiveRecord::Base.enable_retry = true
 ActiveRecord::Base.execution_tries = 3
+ActiveRecord::Base.retry_in_transaction = true
 
 class Employee < ActiveRecord::Base; end
 
@@ -99,8 +100,9 @@ MyApp::Application.configure do
   # execution_tries -> 0: retry indefinitely
   config.active_record.execution_retry_wait = 1.5 # sec
   config.active_record.retry_mode = :rw # default: `:r`, valid values: `:r`, `:rw`, `:force`
+  config.active_record.retry_in_transaction = false # default: true
   ...
-ene
+end
 ```
 
 ## Retry mode
@@ -108,6 +110,13 @@ ene
 * `:r`      Retry only SELECT / SHOW / SET
 * `:rw`     Retry in all SQL, but does not retry if `Lost connection` has happened in write SQL
 * `:force`  Retry in all SQL
+
+## Retry in transaction
+
+When set to `false` any retry attempt inside transaction will fail.
+By default, after reconnect all remaining SQL queries will be executed normally potentially resulting in 
+partially successful transaction. Since this potentially can break data integrity, depending on application 
+business logic it might be desirable to fail whole transaction completely instead.
 
 ## Run tests
 

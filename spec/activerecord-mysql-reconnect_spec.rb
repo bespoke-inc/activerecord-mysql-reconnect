@@ -18,6 +18,7 @@ describe 'activerecord-mysql-reconnect' do
     end
 
     ActiveRecord::Base.enable_retry = true
+    ActiveRecord::Base.retry_in_transaction = true
     ActiveRecord::Base.execution_tries = 10
     ActiveRecord::Base.retry_mode = :rw
     ActiveRecord::Base.retry_databases = []
@@ -191,43 +192,84 @@ describe 'activerecord-mysql-reconnect' do
   end
 
   context 'with transaction' do
-    before do
-      allow_any_instance_of(Mysql2::Error).to receive(:message).and_return('MySQL server has gone away')
-    end
-
-    specify do
-      skip if myisam?
-
-      expect(Employee.count).to eq 1000
-
-      ActiveRecord::Base.transaction do
-        emp = Employee.create(
-          :emp_no     => 9999,
-          :birth_date => Time.now,
-          :first_name => 'Scott',
-          :last_name  => 'Tiger',
-          :hire_date  => Time.now
-        )
-
-        expect(emp.id).to eq 1001
-        expect(emp.emp_no).to eq 9999
-
-        MysqlServer.restart
-
-        emp = Employee.create(
-          :emp_no     => 9998,
-          :birth_date => Time.now,
-          :first_name => 'Scott',
-          :last_name  => 'Tiger',
-          :hire_date  => Time.now
-        )
-
-        # NOTE: Ignore the transaction on :rw mode
-        expect(emp.id).to eq 1001
-        expect(emp.emp_no).to eq 9998
+    context 'when enabled retry in transactions' do
+      before do
+        allow_any_instance_of(Mysql2::Error).to receive(:message).and_return('MySQL server has gone away')
       end
 
-      expect(Employee.count).to eq 1001
+      specify do
+        skip if myisam?
+
+        expect(Employee.count).to eq 1000
+
+        ActiveRecord::Base.transaction do
+          emp = Employee.create(
+            :emp_no     => 9999,
+            :birth_date => Time.now,
+            :first_name => 'Scott',
+            :last_name  => 'Tiger',
+            :hire_date  => Time.now
+          )
+
+          expect(emp.id).to eq 1001
+          expect(emp.emp_no).to eq 9999
+
+          MysqlServer.restart
+
+          emp = Employee.create(
+            :emp_no     => 9998,
+            :birth_date => Time.now,
+            :first_name => 'Scott',
+            :last_name  => 'Tiger',
+            :hire_date  => Time.now
+          )
+
+          # NOTE: Ignore the transaction on :rw mode
+          expect(emp.id).to eq 1001
+          expect(emp.emp_no).to eq 9998
+        end
+
+        expect(Employee.count).to eq 1001
+      end
+    end
+
+    context 'when disabled retry in transactions' do
+      before do
+        ActiveRecord::Base.retry_in_transaction = false
+        allow_any_instance_of(Mysql2::Error).to receive(:message).and_return('MySQL server has gone away')
+      end
+
+      specify do
+        skip if myisam?
+
+        expect(Employee.count).to eq 1000
+
+        expect {
+          ActiveRecord::Base.transaction do
+            emp = Employee.create(
+              :emp_no     => 9999,
+              :birth_date => Time.now,
+              :first_name => 'Scott',
+              :last_name  => 'Tiger',
+              :hire_date  => Time.now
+            )
+
+            MysqlServer.restart
+
+            count = Employee.count
+
+            emp = Employee.create(
+              :emp_no     => 9998,
+              :birth_date => Time.now,
+              :first_name => 'Scott',
+              :last_name  => 'Tiger',
+              :hire_date  => Time.now
+            )
+          end
+        }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(Employee.count).to eq 1000
+      end
     end
   end
 
