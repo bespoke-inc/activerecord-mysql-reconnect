@@ -38,6 +38,7 @@ ActiveRecord::Base.logger.formatter = proc {|_, _, _, message| "#{message}\n" }
 ActiveRecord::Base.enable_retry = true
 ActiveRecord::Base.execution_tries = 3
 ActiveRecord::Base.retry_in_transaction = true
+ActiveRecord::Base.enable_readonly_disconnect = true
 
 class Employee < ActiveRecord::Base; end
 
@@ -101,6 +102,7 @@ MyApp::Application.configure do
   config.active_record.execution_retry_wait = 1.5 # sec
   config.active_record.retry_mode = :rw # default: `:r`, valid values: `:r`, `:rw`, `:force`
   config.active_record.retry_in_transaction = false # default: true
+  config.active_record.enable_readonly_disconnect = true # default: true
   ...
 end
 ```
@@ -117,6 +119,13 @@ When set to `false` any retry attempt inside transaction will fail.
 By default, after reconnect all remaining SQL queries will be executed normally potentially resulting in 
 partially successful transaction. Since this potentially can break data integrity, depending on application 
 business logic it might be desirable to fail whole transaction completely instead.
+
+## Enable readonly disconnect
+
+Only useful for database cluster with master-slave type that supports failover. When database cluster failover
+occur write and read-only nodes swap, however connection endpoint stays the same. Since already created connections
+would have IP of the write node before failover (which becomes read-only after failover), it is necessary to forcefully
+close these connections.
 
 ## Run tests
 

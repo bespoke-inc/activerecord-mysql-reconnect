@@ -19,6 +19,7 @@ describe 'activerecord-mysql-reconnect' do
 
     ActiveRecord::Base.enable_retry = true
     ActiveRecord::Base.retry_in_transaction = true
+    ActiveRecord::Base.enable_readonly_disconnect = false
     ActiveRecord::Base.execution_tries = 10
     ActiveRecord::Base.retry_mode = :rw
     ActiveRecord::Base.retry_databases = []

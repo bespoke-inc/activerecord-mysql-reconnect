@@ -79,6 +79,10 @@ module Activerecord::Mysql::Reconnect
       !!ActiveRecord::Base.retry_in_transaction
     end
 
+    def enable_readonly_disconnect
+      !!ActiveRecord::Base.enable_readonly_disconnect
+    end
+
     def retry_mode=(v)
       unless RETRY_MODES.include?(v)
         raise "Invalid retry_mode. Please set one of the following: #{RETRY_MODES.map {|i| i.inspect }.join(', ')}"
@@ -133,6 +137,14 @@ module Activerecord::Mysql::Reconnect
           retval = block.call
           break
         rescue => e
+
+          # when enabled, force database connection closure for likely failover event
+          if e.message&.include?('--read-only') and enable_readonly_disconnect
+            logger.warn("Database is readonly, failover likely occurred. Closing database connection")
+            conn.close
+            raise e
+          end
+
           if enable_retry and (tries.zero? or n < tries) and should_handle?(e, opts)
             on_error.call if on_error
             wait = self.execution_retry_wait * n

@@ -1,8 +1,9 @@
 class ActiveRecord::Base
-  class_attribute :execution_tries,         :instance_accessor => false
-  class_attribute :execution_retry_wait,    :instance_accessor => false
-  class_attribute :enable_retry,            :instance_accessor => false
-  class_attribute :retry_in_transaction,    :instance_accessor => false
+  class_attribute :execution_tries,             :instance_accessor => false
+  class_attribute :execution_retry_wait,        :instance_accessor => false
+  class_attribute :enable_retry,                :instance_accessor => false
+  class_attribute :retry_in_transaction,        :instance_accessor => false
+  class_attribute :enable_readonly_disconnect,  :instance_accessor => false
 
   RETRY_MODES = [:r, :rw, :force]
   DEFAULT_RETRY_MODE = :r
