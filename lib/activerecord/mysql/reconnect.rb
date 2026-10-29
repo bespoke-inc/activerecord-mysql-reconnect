@@ -30,7 +30,7 @@ module Activerecord::Mysql::Reconnect
   ]
 
   @@handle_r_error_messages = {
-    lost_connection: 'Lost connection to MySQL server during query',
+    lost_connection: 'Lost connection to server during query',
   }
 
   @@handle_rw_error_messages = {
